@@ -820,7 +820,7 @@ async def daily_tip(context: ContextTypes.DEFAULT_TYPE):
         except: pass
 
 # ============ التشغيل ============
-def main():
+def run_bot():
     import asyncio
     try:
         asyncio.set_event_loop(asyncio.new_event_loop())
@@ -833,12 +833,18 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
-    # تنبيه يومي كل 24 ساعة
     if app.job_queue:
         app.job_queue.run_repeating(daily_tip, interval=86400, first=3600)
 
     print("✅ البوت شغال...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+def main():
+    import threading
+    from web import run_web
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    run_web()
 
 if __name__ == "__main__":
     main()
