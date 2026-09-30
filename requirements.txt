@@ -1,0 +1,2 @@
+python-telegram-bot[job-queue]==21.6
+zxcvbn==4.5.0
