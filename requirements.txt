@@ -1,3 +1,2 @@
 python-telegram-bot[job-queue]==21.6
 zxcvbn==4.5.0
-Flask==3.0.3

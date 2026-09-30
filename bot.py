@@ -820,7 +820,7 @@ async def daily_tip(context: ContextTypes.DEFAULT_TYPE):
         except: pass
 
 # ============ التشغيل ============
-def run_bot():
+def main():
     import asyncio
     try:
         asyncio.set_event_loop(asyncio.new_event_loop())
@@ -838,13 +838,6 @@ def run_bot():
 
     print("✅ البوت شغال...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-def main():
-    import threading
-    from web import run_web
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    run_web()
 
 if __name__ == "__main__":
     main()
