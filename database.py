@@ -5,44 +5,19 @@ DB_PATH = "data.db"
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            username TEXT,
-            first_name TEXT,
-            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            points INTEGER DEFAULT 0,
-            language TEXT DEFAULT 'ar',
-            referred_by INTEGER
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS force_subs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT,
-            chat_id TEXT,
-            title TEXT,
-            invite_link TEXT
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            action TEXT,
-            details TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            target TEXT,
-            reason TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY, username TEXT, first_name TEXT,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, points INTEGER DEFAULT 0,
+        language TEXT DEFAULT 'ar', referred_by INTEGER)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS force_subs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, chat_id TEXT,
+        title TEXT, invite_link TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT,
+        details TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, target TEXT,
+        reason TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     conn.commit()
     conn.close()
 
@@ -53,10 +28,8 @@ def add_user(user_id, username, first_name, referred_by=None):
     if c.fetchone():
         conn.close()
         return False
-    c.execute(
-        "INSERT INTO users (user_id, username, first_name, referred_by) VALUES (?, ?, ?, ?)",
-        (user_id, username, first_name, referred_by),
-    )
+    c.execute("INSERT INTO users (user_id, username, first_name, referred_by) VALUES (?, ?, ?, ?)",
+              (user_id, username, first_name, referred_by))
     conn.commit()
     conn.close()
     return True
@@ -83,13 +56,6 @@ def get_points(user_id):
     row = c.fetchone()
     conn.close()
     return row[0] if row else 0
-
-def set_language(user_id, lang):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("UPDATE users SET language = ? WHERE user_id = ?", (lang, user_id))
-    conn.commit()
-    conn.close()
 
 def get_users_count():
     conn = sqlite3.connect(DB_PATH)
