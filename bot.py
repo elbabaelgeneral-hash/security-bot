@@ -17,6 +17,37 @@ bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
 db.init_db()
 user_states = {}
 
+PAID_BUTTONS = ["security_check", "password_check", "phishing_check", "gen_password", "quiz_start"]
+BUTTON_NAMES = {
+    "security_check": "🔍 فحص الحساب",
+    "password_check": "🔑 فحص كلمة المرور",
+    "phishing_check": "🔗 فحص رابط",
+    "gen_password": "🎲 توليد كلمة مرور",
+    "quiz_start": "🧠 اختبار الوعي",
+}
+
+def check_and_deduct(uid, button_key):
+    if uid == DEVELOPER_ID:
+        return True, 0
+    try:
+        cost = int(db.get_setting("cost_" + button_key, "0") or "0")
+    except:
+        cost = 0
+    if cost <= 0:
+        return True, 0
+    user_pts = db.get_points(uid)
+    if user_pts < cost:
+        return False, cost
+    db.deduct_points(uid, cost)
+    return True, cost
+
+def get_referral_points():
+    try:
+        return int(db.get_setting("referral_points", "20") or "20")
+    except:
+        return 20
+
+
 GENERAL_TIPS = (
     "🛡️ *نصائح لحماية نفسك:*\n\n"
     "1️⃣ استخدم كلمة مرور قوية وفريدة لكل حساب (12-15 حرف).\n\n"
