@@ -57,7 +57,7 @@ def analyze_username_security(username):
     if re.search(r"\d", u): score += 10
     else: tips.append("أضف أرقام (بدون تسلسل).")
     if re.search(r"[._\-]", u): score += 10
-    else: tips.append("أضف رمز _ أو . أو -.")
+    else: tips.append("أضف رمز (نقطة أو شرطة) لزيادة الأمان.")
     if any(w in ul for w in COMMON_WORDS):
         score -= 20; reasons.append("⚠️ يحتوي على كلمة شائعة (admin, ahmed...).")
     if any(s in ul for s in COMMON_SEQ):
@@ -297,7 +297,7 @@ def sub_keyboard(missing):
     kb.add(InlineKeyboardButton("✅ تحققت", callback_data="check_sub"))
     return kb
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start'], func=lambda m: m.chat.type == "private")
 def cmd_start(message):
     user = message.from_user
     args = message.text.split()
@@ -306,7 +306,7 @@ def cmd_start(message):
         try:
             rid = int(args[1])
             if rid != user.id: ref_by = rid
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
     is_new = db.add_user(user.id, user.username or "", user.first_name or "", ref_by)
     if is_new:
         db.add_points(user.id, 1)
@@ -314,7 +314,7 @@ def cmd_start(message):
             db.add_points(ref_by, 20)
             try:
                 bot.send_message(ref_by, "🎉 حد دخل البوت من لينكك! خدت 20 نقطة.")
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
     ok, missing = is_subscribed(user.id)
     if not ok:
         bot.send_message(message.chat.id, "⚠️ *لازم تشترك الأول:*" + FOOTER, reply_markup=sub_keyboard(missing))
@@ -322,12 +322,12 @@ def cmd_start(message):
     is_dev = (user.id == DEVELOPER_ID)
     bot.send_message(message.chat.id, "👋 أهلاً *" + (user.first_name or "") + "*!\n\n🛡️ بوت التوعية الأمنية\nاختر من القائمة:" + FOOTER, reply_markup=main_menu(is_dev))
 
-@bot.message_handler(commands=['dev'])
+@bot.message_handler(commands=['dev'], func=lambda m: m.chat.type == "private")
 def cmd_dev(message):
     if message.from_user.id != DEVELOPER_ID: return
     bot.send_message(message.chat.id, "🛠️ *لوحة التحكم*" + FOOTER, reply_markup=dev_menu())
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: call.message.chat.type == "private")
 def handle_callback(call):
     data = call.data
     uid = call.from_user.id
@@ -335,73 +335,67 @@ def handle_callback(call):
     mid = call.message.message_id
     is_dev = (uid == DEVELOPER_ID)
     try: bot.answer_callback_query(call.id)
-    except: pass
+    except Exception as _e: print("BT_ERR:", _e)
     
     if data == "check_sub":
-        if uid != DEVELOPER_ID:
         ok, missing = is_subscribed(uid)
-    else:
-        ok, missing = True, []
         if ok:
             try: bot.edit_message_text("✅ تم التحقق!" + FOOTER, cid, mid, reply_markup=main_menu(is_dev))
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
         else:
             try: bot.edit_message_text("❌ لسه فيه قنوات:" + FOOTER, cid, mid, reply_markup=sub_keyboard(missing))
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
         return
     
-    if uid != DEVELOPER_ID:
-        ok, missing = is_subscribed(uid)
-    else:
-        ok, missing = True, []
+    ok, missing = is_subscribed(uid)
     if not ok:
         try: bot.edit_message_text("⚠️ اشترك الأول:" + FOOTER, cid, mid, reply_markup=sub_keyboard(missing))
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "back_main":
         try: bot.edit_message_text("القائمة الرئيسية:" + FOOTER, cid, mid, reply_markup=main_menu(is_dev))
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "tips":
         try: bot.edit_message_text(GENERAL_TIPS + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "systems":
         try: bot.edit_message_text("🔐 اختر النظام:" + FOOTER, cid, mid, reply_markup=systems_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data.startswith("sys_"):
         key = data[4:]
         text = SYSTEM_GUIDES.get(key, "لا يوجد دليل.")
         try: bot.edit_message_text(text + FOOTER, cid, mid, reply_markup=back_btn("systems"))
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "about":
         try: bot.edit_message_text("ℹ️ *عن البوت:*\n\nبوت توعية أمنية لحماية المستخدمين.\n\n🛡️ لا نخزن كلمات المرور.\n🎯 الهدف: نشر الوعي." + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "security_check":
         user_states[uid] = {"awaiting": "security_check"}
         try: bot.edit_message_text("🔍 *فحص الحساب الأمني*\n\nابعت اليوزرنيم (مثال: ahmed123).\n\n⚠️ متبعتش كلمة المرور." + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "password_check":
         user_states[uid] = {"awaiting": "password_check"}
         try: bot.edit_message_text("🔑 *فحص كلمة المرور*\n\nابعت كلمة مرور تجريبية (مش حقيقية).\n\n⚠️ البوت مش هيحفظها." + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "phishing_check":
         user_states[uid] = {"awaiting": "phishing_check"}
         try: bot.edit_message_text("🔗 *فحص رابط مشبوه*\n\nابعت اللينك.\nمثال: http://g00gle-login.tk" + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "gen_password":
@@ -412,7 +406,7 @@ def handle_callback(call):
         kb.add(InlineKeyboardButton("🎲 ولّد تاني", callback_data="gen_password"))
         kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
         try: bot.edit_message_text(text, cid, mid, reply_markup=kb)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         db.add_points(uid, 3)
         db.add_history(uid, "توليد كلمة مرور", "")
         return
@@ -425,40 +419,40 @@ def handle_callback(call):
         if nxt: txt += "🎯 المستوى التالي عند " + str(nxt) + " نقطة (فاضل " + str(nxt-pts) + ")."
         else: txt += "🎉 وصلت لأعلى مستوى!"
         try: bot.edit_message_text(txt + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "leaderboard":
         top = db.get_leaderboard(10)
         if not top:
             try: bot.edit_message_text("لسه مفيش مستخدمين." + FOOTER, cid, mid, reply_markup=back_btn())
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
             return
         medals = ["🥇","🥈","🥉"] + ["🔹"]*7
         txt = "🏆 *أعلى 10 مستخدمين:*\n\n"
         for i, (name, pts) in enumerate(top):
             txt += medals[i] + " " + (name or "مستخدم") + " — *" + str(pts) + "* نقطة\n"
         try: bot.edit_message_text(txt + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "my_history":
         hist = db.get_history(uid, 10)
         if not hist:
             try: bot.edit_message_text("لسه مفيش سجل." + FOOTER, cid, mid, reply_markup=back_btn())
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
             return
         txt = "📜 *آخر 10 عمليات:*\n\n"
         for act, det, ts in hist:
             txt += "• " + act + (" - " + det if det else "") + "\n"
         try: bot.edit_message_text(txt + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "report_start":
         user_states[uid] = {"awaiting": "report_target"}
         try: bot.edit_message_text("🚨 *إبلاغ عن نصب*\n\nابعت رقم/حساب/لينك النصاب." + FOOTER, cid, mid, reply_markup=back_btn())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "share_bot":
@@ -469,7 +463,7 @@ def handle_callback(call):
         kb.add(InlineKeyboardButton("📤 شارك الآن", url=share_url))
         kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
         try: bot.edit_message_text(txt, cid, mid, reply_markup=kb)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "quiz_start":
@@ -494,7 +488,7 @@ def handle_callback(call):
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("التالي ▶️", callback_data="quiz_next"))
         try: bot.edit_message_text(feedback + FOOTER, cid, mid, reply_markup=kb)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "quiz_next":
@@ -505,7 +499,7 @@ def handle_callback(call):
     
     if data == "dev_panel":
         try: bot.edit_message_text("🛠️ *لوحة التحكم*" + FOOTER, cid, mid, reply_markup=dev_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "dev_stats":
@@ -514,25 +508,25 @@ def handle_callback(call):
         reports = db.get_reports()
         txt = "📊 *الإحصائيات:*\n\n👥 المستخدمين: *" + str(count) + "*\n🔒 الاشتراكات: *" + str(len(subs)) + "*\n🚨 البلاغات: *" + str(len(reports)) + "*" + FOOTER
         try: bot.edit_message_text(txt, cid, mid, reply_markup=dev_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "dev_reports":
         reports = db.get_reports()
         if not reports:
             try: bot.edit_message_text("مفيش بلاغات." + FOOTER, cid, mid, reply_markup=dev_menu())
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
             return
         txt = "🚨 *آخر البلاغات:*\n\n"
         for rid, uid_, target, reason, ts in reports[:20]:
             txt += "#" + str(rid) + " | من `" + str(uid_) + "`\n🎯 " + str(target) + "\n📝 " + str(reason) + "\n\n"
         try: bot.edit_message_text(txt + FOOTER, cid, mid, reply_markup=dev_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "dev_add_sub":
         try: bot.edit_message_text("اختر النوع:" + FOOTER, cid, mid, reply_markup=sub_types_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data.startswith("stype_"):
@@ -540,14 +534,14 @@ def handle_callback(call):
         user_states[uid] = {"new_sub": {"type": stype}, "awaiting": "sub_chat_id"}
         hint = {"channel":"معرف القناة (@my أو -100...).","group":"معرف الجروب.","bot":"معرف البوت (@mybot).","link":"اللينك الكامل (https://t.me/...)."}[stype]
         try: bot.edit_message_text("📝 " + hint + "\n\n/cancel للإلغاء." + FOOTER, cid, mid)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "dev_list_subs":
         subs = db.get_force_subs()
         if not subs:
             try: bot.edit_message_text("مفيش اشتراكات." + FOOTER, cid, mid, reply_markup=dev_menu())
-            except: pass
+            except Exception as _e: print("BT_ERR:", _e)
             return
         txt = "📋 *الاشتراكات:*\n\n"
         kb = InlineKeyboardMarkup(row_width=1)
@@ -556,20 +550,20 @@ def handle_callback(call):
             kb.add(InlineKeyboardButton("❌ حذف " + title, callback_data="del_" + str(sid)))
         kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="dev_panel"))
         try: bot.edit_message_text(txt + FOOTER, cid, mid, reply_markup=kb)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data.startswith("del_"):
         sid = int(data[4:])
         db.delete_force_sub(sid)
         try: bot.edit_message_text("✅ تم الحذف." + FOOTER, cid, mid, reply_markup=dev_menu())
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if data == "dev_broadcast":
         user_states[uid] = {"awaiting": "broadcast"}
         try: bot.edit_message_text("📢 ابعت الرسالة.\n\n/cancel للإلغاء." + FOOTER, cid, mid)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
 
 def send_quiz_question(cid, mid, uid):
@@ -587,7 +581,7 @@ def send_quiz_question(cid, mid, uid):
         kb.add(InlineKeyboardButton("🔁 جرب تاني", callback_data="quiz_start"))
         kb.add(InlineKeyboardButton("🔙 القائمة", callback_data="back_main"))
         try: bot.edit_message_text(txt, cid, mid, reply_markup=kb)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         user_states.pop(uid, None)
         return
     q = QUIZ_QUESTIONS[idx]
@@ -596,9 +590,9 @@ def send_quiz_question(cid, mid, uid):
         kb.add(InlineKeyboardButton(opt, callback_data="quiz_ans_" + str(i)))
     txt = "🧠 *سؤال " + str(idx+1) + "/" + str(len(QUIZ_QUESTIONS)) + "*\n\n" + q["q"] + FOOTER
     try: bot.edit_message_text(txt, cid, mid, reply_markup=kb)
-    except: pass
+    except Exception as _e: print("BT_ERR:", _e)
 
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda m: m.chat.type == "private")
 def handle_message(message):
     uid = message.from_user.id
     state = user_states.get(uid, {})
@@ -639,7 +633,7 @@ def handle_message(message):
         db.add_points(uid, 5)
         db.add_history(uid, "فحص كلمة مرور", "")
         try: bot.delete_message(message.chat.id, message.message_id)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         user_states.pop(uid, None)
         return
     
@@ -671,7 +665,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, "✅ تم استلام البلاغ. شكرًا!" + FOOTER, reply_markup=back_btn())
         try:
             bot.send_message(DEVELOPER_ID, "🚨 *بلاغ جديد:*\nمن: `" + str(uid) + "`\n🎯 " + target + "\n📝 " + text + FOOTER)
-        except: pass
+        except Exception as _e: print("BT_ERR:", _e)
         return
     
     if awaiting == "sub_chat_id":
@@ -742,8 +736,8 @@ def daily_tip_loop():
             for u in users:
                 try:
                     bot.send_message(u, "🔔 *نصيحة اليوم:*\n\n" + tip + FOOTER)
-                except: pass
-        except: pass
+                except Exception as _e: print("BT_ERR:", _e)
+        except Exception as _e: print("BT_ERR:", _e)
         time.sleep(86400)
 
 threading.Thread(target=daily_tip_loop, daemon=True).start()
