@@ -338,7 +338,10 @@ def handle_callback(call):
     except: pass
     
     if data == "check_sub":
+        if uid != DEVELOPER_ID:
         ok, missing = is_subscribed(uid)
+    else:
+        ok, missing = True, []
         if ok:
             try: bot.edit_message_text("✅ تم التحقق!" + FOOTER, cid, mid, reply_markup=main_menu(is_dev))
             except: pass
@@ -347,7 +350,10 @@ def handle_callback(call):
             except: pass
         return
     
-    ok, missing = is_subscribed(uid)
+    if uid != DEVELOPER_ID:
+        ok, missing = is_subscribed(uid)
+    else:
+        ok, missing = True, []
     if not ok:
         try: bot.edit_message_text("⚠️ اشترك الأول:" + FOOTER, cid, mid, reply_markup=sub_keyboard(missing))
         except: pass
@@ -382,7 +388,7 @@ def handle_callback(call):
     
     if data == "security_check":
         user_states[uid] = {"awaiting": "security_check"}
-        try: bot.edit_message_text("🔍 *فحص الحساب الأمني*\n\nابعت اليوزرنيم (مثال: ahmed_123).\n\n⚠️ متبعتش كلمة المرور." + FOOTER, cid, mid, reply_markup=back_btn())
+        try: bot.edit_message_text("🔍 *فحص الحساب الأمني*\n\nابعت اليوزرنيم (مثال: ahmed123).\n\n⚠️ متبعتش كلمة المرور." + FOOTER, cid, mid, reply_markup=back_btn())
         except: pass
         return
     
