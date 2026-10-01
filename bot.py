@@ -256,6 +256,10 @@ def dev_menu():
     kb.add(InlineKeyboardButton("📋 عرض الاشتراكات", callback_data="dev_list_subs"))
     kb.add(InlineKeyboardButton("🚨 البلاغات", callback_data="dev_reports"))
     kb.add(InlineKeyboardButton("📢 بث رسالة", callback_data="dev_broadcast"))
+    kb.add(InlineKeyboardButton("💰 إضافة نقاط", callback_data="dev_add_points"))
+    kb.add(InlineKeyboardButton("➖ خصم نقاط", callback_data="dev_remove_points"))
+    kb.add(InlineKeyboardButton("💵 أسعار الأزرار", callback_data="dev_button_costs"))
+    kb.add(InlineKeyboardButton("🎁 نقاط الإحالة", callback_data="dev_referral_points"))
     kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
     return kb
 
@@ -311,9 +315,9 @@ def cmd_start(message):
     if is_new:
         db.add_points(user.id, 1)
         if ref_by:
-            db.add_points(ref_by, 20)
+            db.add_points(ref_by, get_referral_points())
             try:
-                bot.send_message(ref_by, "🎉 حد دخل البوت من لينكك! خدت 20 نقطة.")
+                bot.send_message(ref_by, "🎉 حد دخل البوت من لينكك! خدت " + str(get_referral_points()) + " نقطة.")
             except Exception as _e: print("BT_ERR:", _e)
     ok, missing = is_subscribed(user.id)
     if not ok:
@@ -458,7 +462,7 @@ def handle_callback(call):
     if data == "share_bot":
         link = "https://t.me/" + BOT_USERNAME + "?start=" + str(uid)
         share_url = "https://t.me/share/url?url=" + link + "&text=" + "جرب بوت التوعية الأمنية!"
-        txt = "📤 *شارك البوت واكسب 20 نقطة* لكل شخص يدخل من لينكك.\n\n🔗 لينكك الخاص:\n`" + link + "`" + FOOTER
+        txt = "📤 *شارك البوت واكسب " + str(get_referral_points()) + " نقطة* لكل شخص يدخل من لينكك.\n\n🔗 لينكك الخاص:\n`" + link + "`" + FOOTER
         kb = InlineKeyboardMarkup()
         kb.add(InlineKeyboardButton("📤 شارك الآن", url=share_url))
         kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="back_main"))
@@ -496,6 +500,44 @@ def handle_callback(call):
         return
     
     if not is_dev: return
+    
+    if data == "dev_add_points":
+        user_states[uid] = {"awaiting": "add_points_target"}
+        try: bot.edit_message_text("💰 *إضافة نقاط*\n\nابعت ID المستخدم أو @username." + FOOTER, cid, mid, reply_markup=back_btn("dev_panel"))
+        except: pass
+        return
+    
+    if data == "dev_remove_points":
+        user_states[uid] = {"awaiting": "remove_points_target"}
+        try: bot.edit_message_text("➖ *خصم نقاط*\n\nابعت ID المستخدم أو @username." + FOOTER, cid, mid, reply_markup=back_btn("dev_panel"))
+        except: pass
+        return
+    
+    if data == "dev_button_costs":
+        txt = "💵 *أسعار الأزرار بالنقاط:*\n\n"
+        kb = InlineKeyboardMarkup(row_width=1)
+        for key, name in BUTTON_NAMES.items():
+            cost = db.get_setting("cost_" + key, "0")
+            txt += "• " + name + ": *" + cost + "* نقطة\n"
+            kb.add(InlineKeyboardButton(name + " (" + cost + ")", callback_data="setcost_" + key))
+        kb.add(InlineKeyboardButton("🔙 رجوع", callback_data="dev_panel"))
+        try: bot.edit_message_text(txt + "\nاختر زر لتعديل سعره (0-100)." + FOOTER, cid, mid, reply_markup=kb)
+        except: pass
+        return
+    
+    if data.startswith("setcost_"):
+        key = data[8:]
+        user_states[uid] = {"awaiting": "set_cost_amount", "cost_key": key}
+        try: bot.edit_message_text("💵 اكتب سعر " + BUTTON_NAMES.get(key, key) + " من 0 لـ 100." + FOOTER, cid, mid, reply_markup=back_btn("dev_button_costs"))
+        except: pass
+        return
+    
+    if data == "dev_referral_points":
+        current = db.get_setting("referral_points", "20")
+        user_states[uid] = {"awaiting": "set_referral_amount"}
+        try: bot.edit_message_text("🎁 *نقاط الإحالة*\n\nالسعر الحالي: *" + current + "* نقطة\n\nاكتب الرقم الجديد (0-100)." + FOOTER, cid, mid, reply_markup=back_btn("dev_panel"))
+        except: pass
+        return
     
     if data == "dev_panel":
         try: bot.edit_message_text("🛠️ *لوحة التحكم*" + FOOTER, cid, mid, reply_markup=dev_menu())
@@ -666,6 +708,81 @@ def handle_message(message):
         try:
             bot.send_message(DEVELOPER_ID, "🚨 *بلاغ جديد:*\nمن: `" + str(uid) + "`\n🎯 " + target + "\n📝 " + text + FOOTER)
         except Exception as _e: print("BT_ERR:", _e)
+        return
+    
+    if awaiting == "add_points_target":
+        u = db.find_user(text)
+        if not u:
+            bot.reply_to(message, "❌ المستخدم مش موجود." + FOOTER); return
+        state["target_uid"] = u[0]
+        state["target_name"] = u[1] or ""
+        state["awaiting"] = "add_points_amount"
+        user_states[uid] = state
+        bot.reply_to(message, "✅ " + (u[1] or "المستخدم") + " عنده دلوقتي *" + str(u[2]) + "* نقطة.\n\nاكتب عدد النقاط اللي عايز تضيفها." + FOOTER)
+        return
+    
+    if awaiting == "add_points_amount":
+        try: amt = int(text)
+        except:
+            bot.reply_to(message, "⚠️ اكتب رقم صحيح." + FOOTER); return
+        if amt < 1 or amt > 100000:
+            bot.reply_to(message, "⚠️ الرقم لازم من 1 لـ 100000." + FOOTER); return
+        db.add_points(state["target_uid"], amt)
+        new_pts = db.get_points(state["target_uid"])
+        bot.reply_to(message, "✅ تم إضافة *" + str(amt) + "* نقطة لـ " + (state.get("target_name") or "المستخدم") + ".\nالرصيد الجديد: *" + str(new_pts) + "*" + FOOTER)
+        try:
+            bot.send_message(state["target_uid"], "🎁 *تم إضافة " + str(amt) + " نقطة لحسابك* من المطور!\n\nرصيدك الحالي: *" + str(new_pts) + "* نقطة" + FOOTER)
+        except: pass
+        user_states.pop(uid, None)
+        return
+    
+    if awaiting == "remove_points_target":
+        u = db.find_user(text)
+        if not u:
+            bot.reply_to(message, "❌ المستخدم مش موجود." + FOOTER); return
+        state["target_uid"] = u[0]
+        state["target_name"] = u[1] or ""
+        state["awaiting"] = "remove_points_amount"
+        user_states[uid] = state
+        bot.reply_to(message, "✅ " + (u[1] or "المستخدم") + " عنده *" + str(u[2]) + "* نقطة.\n\nاكتب عدد النقاط اللي عايز تخصمها." + FOOTER)
+        return
+    
+    if awaiting == "remove_points_amount":
+        try: amt = int(text)
+        except:
+            bot.reply_to(message, "⚠️ اكتب رقم صحيح." + FOOTER); return
+        if amt < 1:
+            bot.reply_to(message, "⚠️ الرقم لازم أكبر من 0." + FOOTER); return
+        db.deduct_points(state["target_uid"], amt)
+        new_pts = db.get_points(state["target_uid"])
+        bot.reply_to(message, "✅ تم خصم *" + str(amt) + "* نقطة من " + (state.get("target_name") or "المستخدم") + ".\nالرصيد الجديد: *" + str(new_pts) + "*" + FOOTER)
+        try:
+            bot.send_message(state["target_uid"], "⚠️ *تم خصم " + str(amt) + " نقطة من حسابك*\n\nرصيدك الحالي: *" + str(new_pts) + "* نقطة" + FOOTER)
+        except: pass
+        user_states.pop(uid, None)
+        return
+    
+    if awaiting == "set_cost_amount":
+        try: amt = int(text)
+        except:
+            bot.reply_to(message, "⚠️ اكتب رقم صحيح." + FOOTER); return
+        if amt < 0 or amt > 100:
+            bot.reply_to(message, "⚠️ الرقم لازم من 0 لـ 100." + FOOTER); return
+        key = state.get("cost_key", "")
+        db.set_setting("cost_" + key, str(amt))
+        bot.reply_to(message, "✅ تم تحديد سعر " + BUTTON_NAMES.get(key, key) + ": *" + str(amt) + "* نقطة." + FOOTER)
+        user_states.pop(uid, None)
+        return
+    
+    if awaiting == "set_referral_amount":
+        try: amt = int(text)
+        except:
+            bot.reply_to(message, "⚠️ اكتب رقم صحيح." + FOOTER); return
+        if amt < 0 or amt > 100:
+            bot.reply_to(message, "⚠️ الرقم لازم من 0 لـ 100." + FOOTER); return
+        db.set_setting("referral_points", str(amt))
+        bot.reply_to(message, "✅ تم تحديد نقاط الإحالة: *" + str(amt) + "* نقطة." + FOOTER)
+        user_states.pop(uid, None)
         return
     
     if awaiting == "sub_chat_id":

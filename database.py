@@ -133,3 +133,29 @@ def delete_force_sub(sub_id):
     c.execute("DELETE FROM force_subs WHERE id = ?", (sub_id,))
     conn.commit()
     conn.close()
+
+
+def deduct_points(user_id, pts):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE users SET points = MAX(0, points - ?) WHERE user_id = ?", (pts, user_id))
+    conn.commit()
+    conn.close()
+
+def find_user(query):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    try:
+        uid = int(query)
+        c.execute("SELECT user_id, first_name, points FROM users WHERE user_id = ?", (uid,))
+        row = c.fetchone()
+        if row:
+            conn.close()
+            return row
+    except:
+        pass
+    q = query.lstrip('@')
+    c.execute("SELECT user_id, first_name, points FROM users WHERE username = ?", (q,))
+    row = c.fetchone()
+    conn.close()
+    return row
