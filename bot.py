@@ -279,8 +279,8 @@ def is_subscribed(user_id):
     missing = []
     for row in subs:
         sid, stype, chat_id, title, link = row
-        if stype == "link":
-            missing.append((sid, title, link)); continue
+        if stype in ("link", "bot"):
+            continue
         try:
             member = bot.get_chat_member(chat_id, user_id)
             if member.status in ["left", "kicked"]:
@@ -671,10 +671,16 @@ def handle_message(message):
     if awaiting == "sub_chat_id":
         ns = state.get("new_sub", {})
         ns["chat_id"] = text
-        state["new_sub"] = ns
-        state["awaiting"] = "sub_title"
-        user_states[uid] = state
-        bot.reply_to(message, "📝 اكتب الاسم الظاهر." + FOOTER)
+        title = text
+        try:
+            chat = bot.get_chat(text)
+            title = chat.title or chat.username or chat.first_name or text
+        except:
+            pass
+        ns["title"] = title
+        db.add_force_sub(ns["type"], ns["chat_id"], title, "")
+        user_states.pop(uid, None)
+        bot.reply_to(message, "✅ تم إضافة: *" + title + "*" + FOOTER)
         return
     
     if awaiting == "sub_title":
